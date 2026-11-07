@@ -1,5 +1,7 @@
 import type { MeterConfig, SetConfig, TempoConfig } from "./Movement";
 
+type PartialSet = Omit<SetConfig, 'id'>
+
 const REPEAT_MARKERS = ['dacapo', 'dalsegno', 'tocoda', 'fine'];
 const UNIT_IN_CROTCHETS: Record<string, number> = {
     maxima: 32,
@@ -42,23 +44,6 @@ async function readMusicXml(file: File): Promise<Document> {
     return doc;
 }
 
-function extractMeter(attributes: Element, barNum: number): MeterConfig | null {
-  const time = kids(attributes, "time")[0];
-  if (!time) {
-    return null;
-  }
-
-  const beats = sumBeats(firstText(time, "beats") ?? "");
-  const beatType = Number(firstText(time, "beat-type"));
-
-  if (beats > 0 && beatType > 0) {
-    const beatsPerBar = (beats * 4) / beatType;
-    return { fromBar: barNum, beatsPerBar };
-  }
-
-  return null;
-}
-
 function parseTempo(direction: Element, currBeat: number): TempoConfig | null{
     const sounds = kids(direction, 'sound');
     for(const sound of sounds){
@@ -98,17 +83,17 @@ function parseTempo(direction: Element, currBeat: number): TempoConfig | null{
     return null
 }
 
-function getRehearsalMark(direction: Element, currBeat: number): SetConfig | null{
+function getRehearsalMark(direction: Element, currBeat: number): PartialSet | null{
     const marks = Array.from(direction.getElementsByTagName("rehearsal"));
     for(const mark of marks){
-        const id = mark.textContent?.trim();
+        const text = mark.textContent?.trim();
 
-        if(!id){
+        if(!text){
             continue
         }
 
         return {
-            id,
+            note: `Rehearsal Mark ${text}`,
             beat: currBeat
         }
     }
@@ -127,7 +112,7 @@ export async function parseMusicXml(file: File){
     const measures = kids(part, 'measure');
     let measureIndex = 0;
 
-    const data: {meter: MeterConfig[], warnings: string[], tempoMap: TempoConfig[], suggestedSets: SetConfig[], beats: number} = {
+    const data: {meter: MeterConfig[], warnings: string[], tempoMap: TempoConfig[], suggestedSets: PartialSet[], beats: number} = {
         meter: [],
         warnings: [],
         tempoMap: [],
@@ -137,6 +122,7 @@ export async function parseMusicXml(file: File){
 
     let currDivisions = 1;
     let sawRepeats = false;
+    let currBeatsPerBar = -1;
     
     for(const measure of measures){
         measureIndex++;
@@ -153,17 +139,15 @@ export async function parseMusicXml(file: File){
                     currDivisions = divisions
                 }
 
-                const meter = extractMeter(el, barNum);
-                if(meter){
-                    data.meter.push(meter)
-                }
 
             } else if(el.localName == "direction"){
                 const at = data.beats + (cursor / currDivisions);
                 const tempo = parseTempo(el, at);
 
                 if(tempo){
-                    data.tempoMap.push(tempo)
+                    if(data.tempoMap.at(-1)?.bpm != tempo.bpm){
+                        data.tempoMap.push(tempo)
+                    }
                 }
 
                 const rehearsalMark = getRehearsalMark(el, at);
@@ -176,7 +160,9 @@ export async function parseMusicXml(file: File){
                 
                 if(!isNaN(bpm)){
                     const at = data.beats + (cursor / currDivisions);
-                    data.tempoMap.push({bpm, beat: at});
+                    if(data.tempoMap.at(-1)?.bpm != bpm){
+                        data.tempoMap.push({bpm, beat: at});
+                    }
                 }
 
                 if(REPEAT_MARKERS.some(a => el.hasAttribute(a))){
@@ -207,6 +193,11 @@ export async function parseMusicXml(file: File){
 
         const actual = furthestSeen / currDivisions
         data.beats += actual;
+
+        if(actual != currBeatsPerBar){
+            data.meter.push({ fromBar: barNum, beatsPerBar: actual});
+            currBeatsPerBar = actual
+        }
     }
 
     if(data.tempoMap.length == 0 || data.tempoMap[0]!.beat > 0){
@@ -216,6 +207,12 @@ export async function parseMusicXml(file: File){
 
     if(sawRepeats){
         data.warnings.push("Score contains repeats/jumps. Positions here won't automatically unravel the repeats, tread carefully");
+    }
+
+    if(data.suggestedSets.length == 0 || data.suggestedSets[0]!.beat > 0){
+        data.suggestedSets.unshift({
+            beat: 0,
+        })
     }
 
     return data;
