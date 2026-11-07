@@ -14,6 +14,7 @@ export type TempoConfig = {
 }
 
 export type SetConfig = {
+    id: string;
     beat: number;
     parent?: string;
 }
@@ -22,6 +23,7 @@ export class Movement {
     #sets: Map<string, SetConfig> = new Map();
 
     title?: string;
+    estimatedBeats: number = 0;
     audio: AudioConfig = {};
     meter: MeterConfig[] = [];
     tempoMap: TempoConfig[] = [];

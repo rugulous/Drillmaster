@@ -3,6 +3,8 @@
         <div class="row h-100">
             <div class="col-4 border h-100">
                 <h2>Movement Details</h2>
+                <button class="btn btn-primary btn-lg" @click="input?.click()">Import MusicXML</button>
+                <input ref="input" type="file" hidden accept=".musicxml,.xml,.mxl" @change="onPick">
 
                 <div class="my-7">
                     <label for="title">Title</label>
@@ -50,7 +52,24 @@
 
 <script setup lang="ts">
 import { Movement } from '@/lib/Movement';
-import { ref } from 'vue';
+import { parseMusicXml } from '@/lib/MusicXML';
+import { reactive, ref } from 'vue';
 
-const movement = ref<Movement>(new Movement());
+const input = ref<HTMLInputElement>()
+const movement = reactive<Movement>(new Movement());
+
+async function onPick(e: Event){
+    const el = e.target as HTMLInputElement;
+    
+    if(el.files?.length){
+        const content = await parseMusicXml(el.files[0]!);
+        console.log(JSON.stringify(content));
+
+        movement.tempoMap = content.tempoMap;
+        movement.meter = content.meter;
+        movement.estimatedBeats = content.beats;
+    }
+
+    el.value = "";
+}
 </script>
