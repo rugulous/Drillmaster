@@ -7,7 +7,7 @@ const routes = [
     path: "/",
     component: Rehearsal,
     name: "main",
-  },
+  }
 ];
 
 if (import.meta.env.DEV) {
