@@ -32,12 +32,7 @@ export class PlaybackEngine {
 
     const startAt = this.context.currentTime + 0.05;
     const trackStart = this.queueCountIn(bus, startAt, beatsPerBar, 60 / bpm);
-
-    const source = this.context.createBufferSource();
-    source.buffer = this.audioFile;
-    source.connect(bus);
-    source.start(trackStart);
-    this.track(source);
+    this.queueTrack(trackStart, movement.audio.offsetMs ?? 0, movement.audio.leadInBeats ?? 0, bpm);
 
     await this.context.resume();
   }
@@ -87,6 +82,17 @@ export class PlaybackEngine {
     }
 
     return startAt + totalCounts * interval;
+  }
+
+  private queueTrack(startAt: number, trackOffsetMs: number, leadInBeats: number, bpm: number){
+    const offset = leadInBeats * (60 / bpm);
+    const source = this.context.createBufferSource();
+
+    source.buffer = this.audioFile!;
+    source.connect(this.bus!);
+    source.start(startAt - offset - (trackOffsetMs / 1000.0));
+
+    this.track(source);
   }
 
   private track(node: AudioScheduledSourceNode) {
