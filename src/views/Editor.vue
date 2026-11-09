@@ -4,11 +4,12 @@
             <div class="col-4 border-end h-100">
                 <h2>Movement Details</h2>
                 
-                <UploadButton class="btn btn-primary btn-lg" accept=".musicxml,.xml,.mxl" @pick="onPick">Import MusicXML</UploadButton>
+                <UploadButton class="btn-solid btn-styled theme-success btn-lg me-3" accept=".mvt,.json" @pick="loadMovement">Load Movement</UploadButton>
+                <UploadButton class="btn-solid btn-styled theme-primary btn-lg me-3" accept=".musicxml,.xml,.mxl" @pick="importMusicXml">Import MusicXML</UploadButton>
 
                 <div class="my-7">
                     <label for="title">Title</label>
-                    <input id="title" class="form-control" v-model="movement.title" />
+                    <input id="title" class="form-control" v-model="movement.title" required/>
                 </div>
 
                 <fieldset class="mb-7">
@@ -57,13 +58,16 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="tempo in movement.tempoMap">
+                            <tr v-for="tempo in movement.tempo">
                                 <td>{{ tempo.beat }}</td>
                                 <td>{{ tempo.bpm }}</td>
                             </tr>
                         </tbody>
                     </table>
                 </fieldset>
+
+                <hr class="my-7"/>
+                <button type="button" class="btn-solid btn-styled theme-success btn-lg" @click="exportMovement">Export Movement</button>
             </div>
 
             <div class="col-8">
@@ -103,14 +107,17 @@
             </div>
         </div>
     </form>
+
+    <SaveMovementDialog ref="modal"></SaveMovementDialog>
 </template>
 
 <script setup lang="ts">
+import SaveMovementDialog from '@/components/SaveMovementDialog.vue';
 import UploadButton from '@/components/UploadButton.vue';
-import { Movement, type SetConfig } from '@/lib/Movement';
+import { deserializeMovement, Movement, serializeMovement, type SetConfig } from '@/lib/Movement';
 import { parseMusicXml } from '@/lib/MusicXML';
 import { locate, barToBeat } from '@/lib/utils';
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, useTemplateRef } from 'vue';
 
 type Row = {
     set: SetConfig;
@@ -121,12 +128,12 @@ type Row = {
 
 const theForm = ref<HTMLFormElement>();
 const movement = reactive<Movement>(new Movement());
+const modal = useTemplateRef<InstanceType<typeof SaveMovementDialog>>('modal')
 
-async function onPick(files: FileList) {
-
+async function importMusicXml(files: FileList) {
     const content = await parseMusicXml(files[0]!);
 
-    movement.tempoMap = content.tempoMap;
+    movement.tempo = content.tempoMap;
     movement.meter = content.meter;
     movement.estimatedBeats = content.beats;
 
@@ -177,5 +184,33 @@ function updateSets(row: Row, field: 'bar' | 'beatInBar', e: Event){
     }
 
     row.set.beat = beat;
+}
+
+function exportMovement(){
+    if(!theForm.value?.reportValidity()){
+        return;
+    }
+
+    const result = serializeMovement(movement);
+    if(!result.success){
+        console.error(result.errors);
+    } else {
+        modal.value?.open(result.result, movement.title ?? '');
+    }
+}
+
+async function loadMovement(files: FileList){
+    const parts = files[0]!.name.split(".");
+    parts.pop();
+    const title = parts.join(".");
+
+    const content = await files[0]!.text();
+    const result = deserializeMovement(content, title);
+
+    if(!result.success){
+        console.error(result.errors);
+    } else {
+        Object.assign(movement, result.result);
+    }
 }
 </script>

@@ -42,3 +42,17 @@ export function barToBeat(meter: MeterConfig[], bar: number, beatInBar: number):
 
   return null;
 }
+
+export function isUnique<T>(arr: T[]): boolean{
+    const seen = new Set<T>();
+
+    for(let item of arr){
+        if(seen.has(item)){
+            return false;
+        }
+
+        seen.add(item);
+    }
+
+    return true;
+}
