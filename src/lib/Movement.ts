@@ -57,6 +57,12 @@ export class Movement {
 
         this.sets.splice(targetIndex, 0, set);
     }
+
+    removeSet(setId: string){
+        console.log(this.sets.length);
+        this.sets = this.sets.filter(s => s.id != setId);
+        console.log(this.sets.length);
+    }
 }
 
 type SerializedMovement = {

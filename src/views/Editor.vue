@@ -75,9 +75,22 @@
             <div class="col-8 h-100 overflow-y-auto">
                 <div class="row row-cols-3 text-center">
                     <div class="mb-5" v-for="(row, index) in rows" :key="row.set.id">
-                        <div class="card h-100" :class="{'bg-primary': row.set.beat == beat || (row.set.beat < beat && row.set.beat + row.counts > beat), 'bg-secondary': row.set.beat + row.counts <= beat}">
+                        <div class="card h-100" :class="{
+                            'bg-primary': playing && (row.set.beat == beat || (row.set.beat < beat && row.set.beat + row.counts > beat)), 
+                            'bg-secondary': playing && row.set.beat + row.counts <= beat
+                            }">
                             <div class="card-body">
-                                <h4 class="card-title">Set <input class="form-control d-inline-block w-auto" v-model="row.set.id" /></h4>
+                                <div class="d-flex">
+                                    <h4 class="card-title w-100">Set <input class="form-control d-inline-block w-auto" v-model="row.set.id" /></h4>
+                                   <button type="button" class="btn-solid btn-styled theme-danger" v-if="index != 0" @click="removeSet(row.set.id)">
+                                    <svg
+                                            xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                            fill="currentColor" viewBox="0 0 16 16">
+                                            <path
+                                                d="M11 1.5v1h3.5a.5.5 0 0 1 0 1h-.538l-.853 10.66A2 2 0 0 1 11.115 16h-6.23a2 2 0 0 1-1.994-1.84L2.038 3.5H1.5a.5.5 0 0 1 0-1H5v-1A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5m-5 0v1h4v-1a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5M4.5 5.029l.5 8.5a.5.5 0 1 0 .998-.06l-.5-8.5a.5.5 0 1 0-.998.06m6.53-.528a.5.5 0 0 0-.528.47l-.5 8.5a.5.5 0 0 0 .998.058l.5-8.5a.5.5 0 0 0-.47-.528M8 4.5a.5.5 0 0 0-.5.5v8.5a.5.5 0 0 0 1 0V5a.5.5 0 0 0-.5-.5" />
+                                        </svg></button>
+                                </div>
+
                                 <p class="fst-italic text-secondary">{{ row.set.note ?? '\u00A0' }}</p>
                                 <div>
                                     <table class="table">
@@ -147,7 +160,13 @@ async function importMusicXml(files: FileList) {
     movement.meter = content.meter;
     movement.estimatedBeats = content.beats;
 
-    if (movement.sets.length == 0) {
+    if (movement.sets.length > 0) {
+        if(!confirm("This movement already has sets - do you wish to replace these with suggested sets from the musicxml?")){
+            return;
+        }
+
+        movement.sets = [];
+    }
         const sets = content.suggestedSets.toSorted((a, b) => a.beat - b.beat);
 
         for (let i = 0; i < sets.length; i++) {
@@ -156,9 +175,6 @@ async function importMusicXml(files: FileList) {
                 id: (i + 1).toString()
             } as SetConfig)
         }
-    } else {
-        alert("Sets already present");
-    }
 }
 
 const sortedSets = computed(() => movement.sets.toSorted((a, b) => a.beat - b.beat));
@@ -194,6 +210,10 @@ function updateSets(row: Row, field: 'bar' | 'beatInBar', e: Event){
     }
 
     row.set.beat = beat;
+}
+
+function removeSet(setId: string){
+    movement.removeSet(setId);
 }
 
 function exportMovement(){
