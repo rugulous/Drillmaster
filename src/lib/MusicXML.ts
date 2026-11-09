@@ -68,7 +68,7 @@ function parseTempo(direction: Element, currBeat: number): TempoConfig | null{
         const unit = UNIT_IN_CROTCHETS[units[0]?.textContent?.trim() ?? ''];
         const perMinute = parseFloat(firstText(metronome, 'per-minute') ?? '');
 
-        if(!unit || isNaN(perMinute) || perMinute < 0){
+        if(!unit || isNaN(perMinute) || perMinute <= 0){
             continue;
         }
 
@@ -156,7 +156,7 @@ export async function parseMusicXml(file: File){
                 }
 
             } else if(el.localName == "sound"){
-                const bpm = parseInt(el.getAttribute("tempo") ?? '', 10);
+                const bpm = parseFloat(el.getAttribute("tempo") ?? '');
                 
                 if(!isNaN(bpm)){
                     const at = data.beats + (cursor / currDivisions);

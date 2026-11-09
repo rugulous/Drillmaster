@@ -33,7 +33,8 @@ export class Movement {
         
         for(let i = 0; i < this.sets.length; i++){
             if(this.sets[i]!.beat > set.beat){
-                targetIndex = i - 1
+                targetIndex = i - 1;
+                break;
             }
         }
 

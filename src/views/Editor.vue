@@ -68,16 +68,17 @@
 
             <div class="col-8">
                 <div class="row row-cols-3 text-center">
-                    <div class="mb-5" v-for="(set, index) in movement.sets" :key="set.id">
+                    <div class="mb-5" v-for="(row, index) in rows" :key="row.set.id">
                         <div class="card h-100">
                             <div class="card-body">
-                                <h4 class="card-title">Set {{ set.id }}</h4>
-                                <p class="fst-italic text-secondary">{{ set.note ?? '\u00A0' }}</p>
+                                <h4 class="card-title">Set <input class="form-control d-inline-block w-auto" v-model="row.set.id" /></h4>
+                                <p class="fst-italic text-secondary">{{ row.set.note ?? '\u00A0' }}</p>
 
                                 <div>
                                     <table class="table">
                                         <thead>
                                             <tr>
+                                                <th>Bar</th>
                                                 <th>Beat</th>
                                                 <th>Counts</th>
                                             </tr>
@@ -85,12 +86,12 @@
                                         <tbody>
                                             <tr class="align-middle">
                                                 <td>
-                                                    <div class="d-flex align-items-center gap-2">
-                                                        <input type="number" class="form-control" v-model="set.beat" step="1" required/>
-                                                        <span class="text-nowrap">(bar 1)</span>
-                                                    </div>
+                                                    <input type="number" :disabled="index == 0" :value="row.bar" class="form-control" @change="updateSets(row, 'bar', $event)" />
                                                 </td>
-                                                <td>{{ getSetCounts(index) }}</td>
+                                                <td>
+                                                    <input type="number" :disabled="index == 0" :value="row.beatInBar" class="form-control" @change="updateSets(row, 'beatInBar', $event)" />
+                                                </td>
+                                                <td>{{ row.counts }}</td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -107,7 +108,15 @@
 <script setup lang="ts">
 import { Movement, type SetConfig } from '@/lib/Movement';
 import { parseMusicXml } from '@/lib/MusicXML';
-import { reactive, ref } from 'vue';
+import { locate, barToBeat } from '@/lib/utils';
+import { computed, reactive, ref } from 'vue';
+
+type Row = {
+    set: SetConfig;
+    bar: number;
+    beatInBar: number;
+    counts: number;
+}
 
 const input = ref<HTMLInputElement>()
 const movement = reactive<Movement>(new Movement());
@@ -117,7 +126,6 @@ async function onPick(e: Event) {
 
     if (el.files?.length) {
         const content = await parseMusicXml(el.files[0]!);
-        console.log(JSON.stringify(content));
 
         movement.tempoMap = content.tempoMap;
         movement.meter = content.meter;
@@ -140,11 +148,38 @@ async function onPick(e: Event) {
     el.value = "";
 }
 
-function getSetCounts(index: number) {
-    let endBeat = (index == movement.sets.length - 1)
-        ? movement.estimatedBeats
-        : movement.sets[index + 1]!.beat;
+const sortedSets = computed(() => movement.sets.toSorted((a, b) => a.beat - b.beat));
 
-    return endBeat - movement.sets[index]!.beat
+const rows = computed<Row[]>(() => 
+    sortedSets.value.map((set, i) => {
+        const end = sortedSets.value[i + 1]?.beat ?? movement.estimatedBeats;
+        const pos = locate(movement.meter, set.beat);
+
+        return {
+            set,
+            bar: pos?.bar,
+            beatInBar: pos ? Math.round(pos.beatInBar * 100) / 100 : undefined,
+            counts: Math.round((end - set.beat) * 100) / 100
+        } as Row;
+    })
+)
+
+function updateSets(row: Row, field: 'bar' | 'beatInBar', e: Event){
+    const input = e.target as HTMLInputElement;
+    const value = input.valueAsNumber;
+    const bar = field === 'bar' ? value : row.bar;
+    const beatInBar = field === 'beatInBar' ? value : row.beatInBar;
+
+    let beat = null;
+    if(bar != null && beatInBar != null && !Number.isNaN(value)){
+        beat = barToBeat(movement.meter, bar, beatInBar);
+    }
+
+    if(beat === null){
+        input.value = String(row[field] ?? '')
+        return;
+    }
+
+    row.set.beat = beat;
 }
 </script>
