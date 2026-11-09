@@ -7,7 +7,7 @@
                 <UploadButton class="btn-solid btn-styled theme-success btn-lg me-3" accept=".mvt,.json" @pick="loadMovement">Load Movement</UploadButton>
                 <UploadButton class="btn-solid btn-styled theme-primary btn-lg me-3" accept=".musicxml,.xml,.mxl" @pick="importMusicXml">Import MusicXML</UploadButton>
                 <UploadButton class="btn-solid btn-styled theme-accent btn-lg" accept="audio/*" @pick="testAudio" v-if="!playing">Test Audio</UploadButton>  
-                <button class="btn-solid btn-styled theme-accent btn-lg" type="button" v-else @click="stopAudio">Stop</button>          
+                <button class="btn-solid btn-styled theme-accent btn-lg" type="button" v-else @click="stopAudio">Stop (Beat {{ beat }})</button>          
 
                 <div class="my-7">
                     <label for="title">Title</label>
@@ -75,11 +75,10 @@
             <div class="col-8 h-100 overflow-y-auto">
                 <div class="row row-cols-3 text-center">
                     <div class="mb-5" v-for="(row, index) in rows" :key="row.set.id">
-                        <div class="card h-100">
+                        <div class="card h-100" :class="{'bg-primary': row.set.beat == beat || (row.set.beat < beat && row.set.beat + row.counts > beat), 'bg-secondary': row.set.beat + row.counts <= beat}">
                             <div class="card-body">
                                 <h4 class="card-title">Set <input class="form-control d-inline-block w-auto" v-model="row.set.id" /></h4>
                                 <p class="fst-italic text-secondary">{{ row.set.note ?? '\u00A0' }}</p>
-
                                 <div>
                                     <table class="table">
                                         <thead>
@@ -120,7 +119,7 @@ import { PlaybackEngine } from '@/lib/Audio';
 import { deserializeMovement, Movement, serializeMovement, type SetConfig } from '@/lib/Movement';
 import { parseMusicXml } from '@/lib/MusicXML';
 import { locate, barToBeat, getFileName } from '@/lib/utils';
-import { computed, reactive, ref, useTemplateRef } from 'vue';
+import { computed, onUnmounted, reactive, ref, useTemplateRef } from 'vue';
 
 type Row = {
     set: SetConfig;
@@ -133,6 +132,7 @@ const theForm = ref<HTMLFormElement>();
 const movement = reactive<Movement>(new Movement());
 const modal = useTemplateRef<InstanceType<typeof SaveMovementDialog>>('modal');
 const playing = ref(false);
+const beat = ref(-1);
 
 const engine = new PlaybackEngine();
 
@@ -227,10 +227,28 @@ async function testAudio(files: FileList){
     await engine.setTrack(audio.buffer);
     await engine.play(movement);
     playing.value = true;
+    frame();
 }
 
 function stopAudio(){
     engine.stop();
     playing.value = false;
 }
+
+let raf = 0;
+function frame(){
+    const currBeat = engine.getCurrentBeat();
+
+    if(currBeat != null){
+        beat.value = Math.floor(currBeat);
+        raf = requestAnimationFrame(frame);
+    } else {
+        playing.value = false;
+    }
+}
+
+onUnmounted(() => {
+    engine.stop(); 
+    cancelAnimationFrame(raf)
+})
 </script>

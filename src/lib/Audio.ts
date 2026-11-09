@@ -1,10 +1,13 @@
 import type { Movement } from "./Movement";
+import { timeToBeat } from "./utils";
 
 export class PlaybackEngine {
   private context: AudioContext;
   private audioFile?: AudioBuffer;
   private bus?: GainNode;
   private activeNodes: AudioScheduledSourceNode[] = [];
+  private trackStart: number | null = null;
+  private movement?: Movement;
 
   constructor() {
     this.context = new AudioContext();
@@ -23,6 +26,8 @@ export class PlaybackEngine {
       throw new Error("Missing audio file.");
     }
 
+    this.movement = movement;
+
     const bus = this.context.createGain();
     bus.connect(this.context.destination);
     this.bus = bus;
@@ -31,8 +36,8 @@ export class PlaybackEngine {
     const bpm = movement.tempo[0]?.bpm ?? 120;
 
     const startAt = this.context.currentTime + 0.05;
-    const trackStart = this.queueCountIn(bus, startAt, beatsPerBar, 60 / bpm);
-    this.queueTrack(trackStart, movement.audio.offsetMs ?? 0, movement.audio.leadInBeats ?? 0, bpm);
+    this.trackStart = this.queueCountIn(bus, startAt, beatsPerBar, 60 / bpm);
+    this.queueTrack(this.trackStart, movement.audio.offsetMs ?? 0, movement.audio.leadInBeats ?? 0, bpm);
 
     await this.context.resume();
   }
@@ -53,6 +58,19 @@ export class PlaybackEngine {
     this.activeNodes = [];
     this.bus?.disconnect();
     this.bus = undefined;
+    this.trackStart = null;
+  }
+
+  getCurrentBeat(){
+    if(this.trackStart === null || !this.movement || this.context.state != 'running'){
+        return null;
+    }
+
+    if(this.context.currentTime < this.trackStart){
+        return -1;
+    }
+
+    return timeToBeat(this.movement!.tempo, 0, this.context.currentTime - this.trackStart, 1);
   }
 
   private queueCountIn(
@@ -99,6 +117,10 @@ export class PlaybackEngine {
     this.activeNodes.push(node);
     node.onended = () => {
       this.activeNodes = this.activeNodes.filter((n) => n !== node);
+
+      if(this.activeNodes.length == 0){
+        this.stop();
+      }
     };
   }
 }

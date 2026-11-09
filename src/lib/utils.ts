@@ -1,4 +1,4 @@
-import type { MeterConfig } from "./Movement";
+import type { MeterConfig, TempoConfig } from "./Movement";
 
 export function locate(meter: MeterConfig[], beat: number) {
   let start = 0; 
@@ -41,6 +41,30 @@ export function barToBeat(meter: MeterConfig[], bar: number, beatInBar: number):
   }
 
   return null;
+}
+
+export function timeToBeat(tempo: TempoConfig[], fromBeat: number, seconds: number, scale = 1): number {
+  let beat = fromBeat;
+  let remaining = seconds;
+
+  for (let i = 0; i < tempo.length; i++) {
+    const { bpm } = tempo[i]!;
+    const segEnd = tempo[i + 1]?.beat ?? Infinity;
+
+    if (segEnd <= beat){
+        continue;
+    }
+
+    const segSeconds = ((segEnd - beat) * 60) / (bpm * scale);
+    if (remaining <= segSeconds){
+        return beat + (remaining * bpm * scale) / 60;
+    } 
+
+    remaining -= segSeconds;
+    beat = segEnd;
+  }
+  
+  return beat;
 }
 
 export function isUnique<T>(arr: T[]): boolean{
