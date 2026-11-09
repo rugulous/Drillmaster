@@ -56,3 +56,9 @@ export function isUnique<T>(arr: T[]): boolean{
 
     return true;
 }
+
+export function getFileName(file: File){
+    const parts = file.name.split(".");
+    parts.pop();
+    return parts.join(".");
+}

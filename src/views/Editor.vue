@@ -6,6 +6,8 @@
                 
                 <UploadButton class="btn-solid btn-styled theme-success btn-lg me-3" accept=".mvt,.json" @pick="loadMovement">Load Movement</UploadButton>
                 <UploadButton class="btn-solid btn-styled theme-primary btn-lg me-3" accept=".musicxml,.xml,.mxl" @pick="importMusicXml">Import MusicXML</UploadButton>
+                <UploadButton class="btn-solid btn-styled theme-accent btn-lg" accept="audio/*" @pick="testAudio" v-if="!playing">Test Audio</UploadButton>  
+                <button class="btn-solid btn-styled theme-accent btn-lg" type="button" v-else @click="stopAudio">Stop</button>          
 
                 <div class="my-7">
                     <label for="title">Title</label>
@@ -114,9 +116,10 @@
 <script setup lang="ts">
 import SaveMovementDialog from '@/components/SaveMovementDialog.vue';
 import UploadButton from '@/components/UploadButton.vue';
+import { PlaybackEngine } from '@/lib/Audio';
 import { deserializeMovement, Movement, serializeMovement, type SetConfig } from '@/lib/Movement';
 import { parseMusicXml } from '@/lib/MusicXML';
-import { locate, barToBeat } from '@/lib/utils';
+import { locate, barToBeat, getFileName } from '@/lib/utils';
 import { computed, reactive, ref, useTemplateRef } from 'vue';
 
 type Row = {
@@ -128,9 +131,16 @@ type Row = {
 
 const theForm = ref<HTMLFormElement>();
 const movement = reactive<Movement>(new Movement());
-const modal = useTemplateRef<InstanceType<typeof SaveMovementDialog>>('modal')
+const modal = useTemplateRef<InstanceType<typeof SaveMovementDialog>>('modal');
+const playing = ref(false);
+
+const engine = new PlaybackEngine();
 
 async function importMusicXml(files: FileList) {
+    if((movement.title ?? "").trim().length == 0){
+        movement.title = getFileName(files[0]!);
+    }
+
     const content = await parseMusicXml(files[0]!);
 
     movement.tempo = content.tempoMap;
@@ -200,9 +210,7 @@ function exportMovement(){
 }
 
 async function loadMovement(files: FileList){
-    const parts = files[0]!.name.split(".");
-    parts.pop();
-    const title = parts.join(".");
+    const title = getFileName(files[0]!)
 
     const content = await files[0]!.text();
     const result = deserializeMovement(content, title);
@@ -212,5 +220,17 @@ async function loadMovement(files: FileList){
     } else {
         Object.assign(movement, result.result);
     }
+}
+
+async function testAudio(files: FileList){
+    const audio = await files[0]!.bytes();
+    await engine.setTrack(audio.buffer);
+    await engine.play(movement);
+    playing.value = true;
+}
+
+function stopAudio(){
+    engine.stop();
+    playing.value = false;
 }
 </script>
