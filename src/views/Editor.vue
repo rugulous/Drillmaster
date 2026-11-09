@@ -73,6 +73,8 @@
             </div>
 
             <div class="col-8 h-100 overflow-y-auto">
+                <button type="button" class="btn-solid btn-styled btn-lg theme-success my-5" @click="addSet">Add Set</button>
+
                 <div class="row row-cols-3 text-center">
                     <div class="mb-5" v-for="(row, index) in rows" :key="row.set.id">
                         <div class="card h-100" :class="{
@@ -210,6 +212,17 @@ function updateSets(row: Row, field: 'bar' | 'beatInBar', e: Event){
     }
 
     row.set.beat = beat;
+}
+
+function addSet(){
+    const beat = parseInt(prompt("On which beat do you wish to create this new set?") ?? '')
+
+    if(!isNaN(beat)){
+        movement.addSet({
+            id: "?",
+            beat
+        })
+    }
 }
 
 function removeSet(setId: string){
