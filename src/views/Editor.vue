@@ -1,10 +1,10 @@
 <template>
-    <div class="container-fluid h-100">
+    <form class="container-fluid h-100" ref="theForm">
         <div class="row h-100">
             <div class="col-4 border-end h-100">
                 <h2>Movement Details</h2>
-                <button class="btn btn-primary btn-lg" @click="input?.click()">Import MusicXML</button>
-                <input ref="input" type="file" hidden accept=".musicxml,.xml,.mxl" @change="onPick">
+                
+                <UploadButton class="btn btn-primary btn-lg" accept=".musicxml,.xml,.mxl" @pick="onPick">Import MusicXML</UploadButton>
 
                 <div class="my-7">
                     <label for="title">Title</label>
@@ -102,10 +102,11 @@
                 </div>
             </div>
         </div>
-    </div>
+    </form>
 </template>
 
 <script setup lang="ts">
+import UploadButton from '@/components/UploadButton.vue';
 import { Movement, type SetConfig } from '@/lib/Movement';
 import { parseMusicXml } from '@/lib/MusicXML';
 import { locate, barToBeat } from '@/lib/utils';
@@ -118,34 +119,29 @@ type Row = {
     counts: number;
 }
 
-const input = ref<HTMLInputElement>()
+const theForm = ref<HTMLFormElement>();
 const movement = reactive<Movement>(new Movement());
 
-async function onPick(e: Event) {
-    const el = e.target as HTMLInputElement;
+async function onPick(files: FileList) {
 
-    if (el.files?.length) {
-        const content = await parseMusicXml(el.files[0]!);
+    const content = await parseMusicXml(files[0]!);
 
-        movement.tempoMap = content.tempoMap;
-        movement.meter = content.meter;
-        movement.estimatedBeats = content.beats;
+    movement.tempoMap = content.tempoMap;
+    movement.meter = content.meter;
+    movement.estimatedBeats = content.beats;
 
-        if (movement.sets.length == 0) {
-            const sets = content.suggestedSets.toSorted((a, b) => a.beat - b.beat);
+    if (movement.sets.length == 0) {
+        const sets = content.suggestedSets.toSorted((a, b) => a.beat - b.beat);
 
-            for (let i = 0; i < sets.length; i++) {
-                movement.addSet({
-                    ...sets[i],
-                    id: (i + 1).toString()
-                } as SetConfig)
-            }
-        } else {
-            alert("Sets already present");
+        for (let i = 0; i < sets.length; i++) {
+            movement.addSet({
+                ...sets[i],
+                id: (i + 1).toString()
+            } as SetConfig)
         }
+    } else {
+        alert("Sets already present");
     }
-
-    el.value = "";
 }
 
 const sortedSets = computed(() => movement.sets.toSorted((a, b) => a.beat - b.beat));
