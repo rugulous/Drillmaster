@@ -3,6 +3,7 @@ import { beatToSeconds, bpmAt, meterAt, timeToBeat } from "./utils";
 
 type PlayOptions = {
   fromBeat?: number;
+  toBeat?: number;
 };
 
 export class PlaybackEngine {
@@ -73,7 +74,7 @@ export class PlaybackEngine {
     );
   }
 
-  async play(movement: Movement, { fromBeat }: PlayOptions = {}) {
+  async play(movement: Movement, { fromBeat, toBeat }: PlayOptions = {}) {
     this.stop();
 
     if (!this.audioFile) {
@@ -96,7 +97,7 @@ export class PlaybackEngine {
 
     const startAt = this.context.currentTime + 0.05;
     const downbeat = this.queueCountIn(bus, startAt, beatsPerBar, 60 / bpm);
-    this.queueTrack(downbeat, startBeat, leadIn);
+    this.queueTrack(downbeat, startBeat, leadIn, toBeat);
 
     await this.context.resume();
   }

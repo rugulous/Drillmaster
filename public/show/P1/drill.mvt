@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "audio": {
+    "offsetMs": 100,
+    "leadInBeats": 8,
+    "estimatedBeats": 272
+  },
+  "meter": [
+    {
+      "fromBar": 1,
+      "beatsPerBar": 4
+    }
+  ],
+  "tempo": [
+    {
+      "beat": 0,
+      "bpm": 120
+    }
+  ],
+  "sets": [
+    {
+      "beat": 0,
+      "id": "1"
+    },
+    {
+      "note": "Rehearsal Mark A",
+      "beat": 4,
+      "id": "2"
+    },
+    {
+      "id": "2A",
+      "beat": 20
+    },
+    {
+      "note": "Rehearsal Mark A9",
+      "beat": 36,
+      "id": "3"
+    },
+    {
+      "note": "Rehearsal Mark B",
+      "beat": 68,
+      "id": "4"
+    },
+    {
+      "note": "Rehearsal Mark B5",
+      "beat": 84,
+      "id": "5"
+    },
+    {
+      "note": "Rehearsal Mark B13",
+      "beat": 116,
+      "id": "6"
+    },
+    {
+      "note": "Rehearsal Mark B17",
+      "beat": 132,
+      "id": "7"
+    },
+    {
+      "note": "Rehearsal Mark C",
+      "beat": 148,
+      "id": "8"
+    },
+    {
+      "id": "8A",
+      "beat": 164
+    },
+    {
+      "note": "Rehearsal Mark D",
+      "beat": 180,
+      "id": "9"
+    },
+    {
+      "id": "9A",
+      "beat": 196
+    },
+    {
+      "note": "Rehearsal Mark E",
+      "beat": 212,
+      "id": "10"
+    },
+    {
+      "note": "Rehearsal Mark E5",
+      "beat": 228,
+      "id": "11"
+    },
+    {
+      "note": "Rehearsal Mark E9",
+      "beat": 244,
+      "id": "12"
+    },
+    {
+      "id": "12A",
+      "beat": 256
+    }
+  ]
+}
