@@ -4,26 +4,32 @@
             <label for="movement">Movement</label>
             <select class="form-control" @change="loadMovement">
                 <option value="" disabled selected>-- Please Select --</option>
-                <option v-for="movement in movements" :value="movement.id">{{ movement.id }} - {{ movement.title }}</option>
+                <option v-for="movement in movements" :value="movement.id">{{ movement.id }} - {{ movement.title }}
+                </option>
             </select>
         </div>
 
         <template v-if="canPlay">
-           <div class="my-5">
-                <button class="btn-solid btn-styled theme-success btn-lg w-100" @click="playSets()" v-if="!isPlaying">Play</button>
-                <button class="btn-solid btn-styled theme-danger btn-lg w-100" @click="engine.stop()" v-else>Stop</button>
+            <div class="my-5">
+                <button class="btn-solid btn-styled theme-success btn-lg w-100" @click="playSets()"
+                    v-if="!isPlaying">Play</button>
+                <button class="btn-solid btn-styled theme-danger btn-lg w-100" @click="engine.stop()"
+                    v-else>Stop</button>
             </div>
-            
+
             <div v-if="loadedMovement && !isPlaying" class="text-center">
-                <p v-if="!startSet || !endSet">Choose the {{ nextSetToSelect }} set <span class="fst-italic">(or leave blank for {{ nextSetToSelect == "start" ? "a full run" : "the rest" }})</span></p>
+                <p v-if="startSet == null || endSet == null">Choose the {{ nextSetToSelect }} set <span class="fst-italic">(or leave
+                        blank for {{ nextSetToSelect == "start" ? "a full run" : "the rest" }})</span></p>
                 <div class="row row-cols-2">
                     <div class="mb-5" v-for="(set, index) in loadedMovement.sets" :key="set.id">
-                        <div class="card h-100" :class="{'bg-primary': set.id == startSet, 'bg-accent': set.id == endSet}" @click="selectSet(index)">
+                        <div class="card h-100" :class="{ 'bg-primary': index == startSet, 'bg-accent': index == endSet }"
+                            @click="selectSet(index)">
                             <div class="card-body">
                                 <h2 class="card-title mb-0">{{ set.id }}</h2>
                                 <p class="fst-italic">
-                                    {{ (index == loadedMovement.sets.length - 1 ? loadedMovement.estimatedBeats : loadedMovement.sets[index + 1]!.beat) - set.beat }} Counts
-                                </p> 
+                                    {{ (index == loadedMovement.sets.length - 1 ? loadedMovement.estimatedBeats :
+                                        loadedMovement.sets[index + 1]!.beat) - set.beat }} Counts
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -58,8 +64,11 @@
 
                 <p>Chunk</p>
                 <ul class="list-group mb-5">
-                    <li class="list-group-item" v-for="set in selectedSets" :class="{'active fs-lg': set.beat <= beat && set.beat + set.counts > beat, 'theme-secondary fs-sm': (set.beat + set.counts - 1) < beat}">
-                        <p class="mb-0 d-flex justify-content-between">Set {{ set.id }} <span class="badge" :class="{'theme-primary': set.beat > beat, 'theme-secondary': (set.beat + set.counts - 1) < beat, 'theme-inverse': set.beat <= beat && set.beat + set.counts > beat}">{{ set.counts }} Counts</span></p>
+                    <li class="list-group-item" v-for="set in selectedSets"
+                        :class="{ 'active fs-lg': set.beat <= beat && set.beat + set.counts > beat, 'theme-secondary fs-sm': (set.beat + set.counts - 1) < beat }">
+                        <p class="mb-0 d-flex justify-content-between">Set {{ set.id }} <span class="badge"
+                                :class="{ 'theme-primary': set.beat > beat, 'theme-secondary': (set.beat + set.counts - 1) < beat, 'theme-inverse': set.beat <= beat && set.beat + set.counts > beat }">{{
+                                set.counts }} Counts</span></p>
                         <p class="mb-0 fst-italic" v-if="set.note">{{ set.note }}</p>
                     </li>
                 </ul>
@@ -72,59 +81,43 @@
 import { deserializeMovement, Movement } from '@/lib/Movement';
 import { usePlayback } from '@/lib/usePlayback';
 import { useWakeLock } from '@/lib/useWakeLock';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 const movements = [{
     id: "P1",
     title: "In the Stone, Billie Jean"
 }]
 
-const {beat, canPlay, isPlaying, ...engine} = usePlayback();
+const { beat, canPlay, isPlaying, ...engine } = usePlayback();
 const loadedMovement = ref<Movement | null>(null);
 
 const nextSetToSelect = ref<"start" | "end">("start");
-const startSet = ref<string | null>();
-const endSet = ref<string | null>(null);
+const startSet = ref<number | null>(null);
+const endSet = ref<number | null>(null);
 
 const selectedSets = computed(() => {
-    if(!loadedMovement.value){
+    if (!loadedMovement.value) {
         return [];
     }
 
-    const sets = [];
-    let inRange = startSet.value == null;
+    const start = startSet.value ?? 0;
+    const end = endSet.value ?? loadedMovement.value.sets.length - 1;
 
-    for(let i = 0; i < loadedMovement.value.sets.length; i++){
-        const set = loadedMovement.value.sets[i]!;
-
-        if(inRange && set.id == endSet.value){
-            break;
-        }
-
-        if(set.id == startSet.value){
-            inRange = true;
-        }
-
-        if(inRange){
-            sets.push({
-                ...set,
-                counts: (i == loadedMovement.value.sets.length - 1
-                                ? loadedMovement.value.estimatedBeats
-                                : loadedMovement.value.sets[i + 1]!.beat) - set.beat
-            });
-        }
-    }
-
-    return sets;
+    return loadedMovement.value.sets.slice(start, end).map((s, i) => ({
+        ...s,
+        counts: (start + i == loadedMovement.value!.sets.length - 1
+            ? loadedMovement.value!.estimatedBeats
+            : loadedMovement.value!.sets[start + i + 1]!.beat) - s.beat
+    }));
 });
 
 const currentSet = computed(() => {
-    if(selectedSets.value.length == 0){
+    if (selectedSets.value.length == 0) {
         return null;
     }
 
-    for(let i = 1; i < selectedSets.value.length; i++){
-        if(selectedSets.value[i]!.beat > beat.value){
+    for (let i = 1; i < selectedSets.value.length; i++) {
+        if (selectedSets.value[i]!.beat > beat.value) {
             return selectedSets.value[i - 1];
         }
     }
@@ -132,7 +125,12 @@ const currentSet = computed(() => {
     return selectedSets.value[selectedSets.value.length - 1]!
 });
 
-async function loadMovement(event: Event){
+async function loadMovement(event: Event) {
+    startSet.value = null;
+    endSet.value = null;
+    nextSetToSelect.value = "start";
+    loadedMovement.value = null;
+
     const id = (event.target as HTMLSelectElement).value;
 
     const [json, audio] = await Promise.all([
@@ -141,7 +139,7 @@ async function loadMovement(event: Event){
     ]);
 
     const loadResult = deserializeMovement(json, id);
-    if(!loadResult.success){
+    if (!loadResult.success) {
         alert(`Failed to load movement: ${loadResult.errors.join(",")}`);
         return;
     }
@@ -151,34 +149,30 @@ async function loadMovement(event: Event){
     await engine.loadAudio(audio);
 }
 
-function selectSet(index: number){
-    const targetSet = loadedMovement.value?.sets[index];
-    if(!targetSet){
-        return;
-    }    
-
-    if(targetSet.id == startSet.value){
+function selectSet(index: number) {
+    if (index == startSet.value) {
         startSet.value = null;
         endSet.value = null;
         nextSetToSelect.value = "start";
         return;
     }
 
-    if(targetSet.id == endSet.value || (nextSetToSelect.value == "start" && endSet.value != null)){
+    if (nextSetToSelect.value == "start" || startSet.value == null) {
+        startSet.value = index;
         endSet.value = null;
+        nextSetToSelect.value = "end";
+        return;
     }
 
-    if(nextSetToSelect.value == "start"){
-        startSet.value = targetSet.id;
-        nextSetToSelect.value = "end";
-    } else {
-        endSet.value = targetSet.id;
-        nextSetToSelect.value = "start";
-    }
+    const first = startSet.value;
+
+    startSet.value = Math.min(first, index);
+    endSet.value = Math.max(first, index);
+    nextSetToSelect.value = "start";
 }
 
-async function playSets(){
-    if(!loadedMovement.value){
+async function playSets() {
+    if (!loadedMovement.value || selectedSets.value.length == 0) {
         return;
     }
 
@@ -190,6 +184,6 @@ async function playSets(){
     });
 }
 
-const {request} = useWakeLock();
+const { request } = useWakeLock();
 onMounted(async () => await request());
 </script>
