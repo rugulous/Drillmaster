@@ -6,8 +6,13 @@
                 
                 <UploadButton class="btn-solid btn-styled theme-success btn-lg me-3" accept=".mvt,.json" @pick="loadMovement">Load Movement</UploadButton>
                 <UploadButton class="btn-solid btn-styled theme-primary btn-lg me-3" accept=".musicxml,.xml,.mxl" @pick="importMusicXml">Import MusicXML</UploadButton>
-                <UploadButton class="btn-solid btn-styled theme-accent btn-lg" accept="audio/*" @pick="testAudio" v-if="!playing">Test Audio</UploadButton>  
-                <button class="btn-solid btn-styled theme-accent btn-lg" type="button" v-else @click="stopAudio">Stop (Beat {{ beat }})</button>          
+                <UploadButton class="btn-solid btn-styled theme-accent btn-lg" accept="audio/*" @pick="loadAudio" v-if="!canPlay">Import Audio</UploadButton>
+                <template v-else>
+                    <button class="btn-solid btn-styled theme-accent btn-lg me-3" type="button" v-if="isPlaying" @click="engine.stop">Stop</button>
+                    <button class="btn-solid btn-styled theme-accent btn-lg me-3" type="button" v-else @click="engine.play(movement)">Test Audio</button>
+                    
+                    <button class="btn-solid btn-styled theme-danger btn-lg" type="button" @click="engine.clearAudio">Remove Audio</button>
+                </template>
 
                 <div class="my-7">
                     <label for="title">Title</label>
@@ -78,8 +83,8 @@
                 <div class="row row-cols-3 text-center">
                     <div class="mb-5" v-for="(row, index) in rows" :key="row.set.id">
                         <div class="card h-100" :class="{
-                            'bg-primary': playing && (row.set.beat == beat || (row.set.beat < beat && row.set.beat + row.counts > beat)), 
-                            'bg-secondary': playing && row.set.beat + row.counts <= beat
+                            'bg-primary': isPlaying && (row.set.beat == beat || (row.set.beat < beat && row.set.beat + row.counts > beat)), 
+                            'bg-secondary': isPlaying && row.set.beat + row.counts <= beat
                             }">
                             <div class="card-body">
                                 <div class="d-flex">
@@ -130,9 +135,9 @@
 <script setup lang="ts">
 import SaveMovementDialog from '@/components/SaveMovementDialog.vue';
 import UploadButton from '@/components/UploadButton.vue';
-import { PlaybackEngine } from '@/lib/Audio';
 import { deserializeMovement, Movement, serializeMovement, type SetConfig } from '@/lib/Movement';
 import { parseMusicXml } from '@/lib/MusicXML';
+import { usePlayback } from '@/lib/usePlayback';
 import { locate, barToBeat, getFileName } from '@/lib/utils';
 import { computed, onUnmounted, reactive, ref, useTemplateRef } from 'vue';
 
@@ -146,10 +151,8 @@ type Row = {
 const theForm = ref<HTMLFormElement>();
 const movement = reactive<Movement>(new Movement());
 const modal = useTemplateRef<InstanceType<typeof SaveMovementDialog>>('modal');
-const playing = ref(false);
-const beat = ref(-1);
 
-const engine = new PlaybackEngine();
+const {beat, canPlay, isPlaying, ...engine} = usePlayback();
 
 async function importMusicXml(files: FileList) {
     if((movement.title ?? "").trim().length == 0){
@@ -255,33 +258,12 @@ async function loadMovement(files: FileList){
     }
 }
 
-async function testAudio(files: FileList){
+async function loadAudio(files: FileList) {
     const audio = await files[0]!.bytes();
-    await engine.setTrack(audio.buffer);
-    await engine.play(movement);
-    playing.value = true;
-    frame();
-}
-
-function stopAudio(){
-    engine.stop();
-    playing.value = false;
-}
-
-let raf = 0;
-function frame(){
-    const currBeat = engine.getCurrentBeat();
-
-    if(currBeat != null){
-        beat.value = Math.floor(currBeat);
-        raf = requestAnimationFrame(frame);
-    } else {
-        playing.value = false;
-    }
+    await engine.loadAudio(audio.buffer);
 }
 
 onUnmounted(() => {
     engine.stop(); 
-    cancelAnimationFrame(raf)
-})
+});
 </script>

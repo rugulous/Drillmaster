@@ -19,6 +19,14 @@ export class PlaybackEngine {
     this.audioFile = await this.context.decodeAudioData(buffer);
   }
 
+  clearAudio(){
+    this.audioFile = undefined;
+  }
+
+  canPlay(){
+    return !!this.audioFile;
+  }
+
   async play(movement: Movement) {
     this.stop();
 
@@ -108,7 +116,7 @@ export class PlaybackEngine {
 
     source.buffer = this.audioFile!;
     source.connect(this.bus!);
-    source.start(startAt - offset - (trackOffsetMs / 1000.0));
+    source.start(Math.max(startAt - offset - (trackOffsetMs / 1000.0), 0));
 
     this.track(source);
   }
