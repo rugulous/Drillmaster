@@ -101,7 +101,7 @@ const selectedSets = computed(() => {
     }
 
     const start = startSet.value ?? 0;
-    const end = endSet.value ?? loadedMovement.value.sets.length - 1;
+    const end = endSet.value ?? loadedMovement.value.sets.length;
 
     return loadedMovement.value.sets.slice(start, end).map((s, i) => ({
         ...s,
