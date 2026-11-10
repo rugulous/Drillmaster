@@ -41,7 +41,10 @@ export function usePlayback(){
         if(currBeat != null){
             beat.value = Math.floor(currBeat);
             raf = requestAnimationFrame(frame);
-        } 
+        } else {
+            beat.value = -1;
+            isPlaying.value = false;
+        }
     }
 
     onScopeDispose(stop);

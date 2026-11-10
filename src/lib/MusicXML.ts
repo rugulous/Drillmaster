@@ -1,4 +1,4 @@
-import type { MeterConfig, SetConfig, TempoConfig } from "./Movement";
+import { DEFAULT_BPM, type MeterConfig, type SetConfig, type TempoConfig } from "./Movement";
 
 type PartialSet = Omit<SetConfig, 'id'>
 
@@ -15,8 +15,6 @@ const UNIT_IN_CROTCHETS: Record<string, number> = {
     '32nd': 0.125,
     '64th': 0.0625
 }
-
-const DEFAULT_BPM = 120;
 
 function kids(el: Element, name: string){
     return Array.from(el.children).filter(c => c.localName == name);

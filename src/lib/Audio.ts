@@ -1,5 +1,9 @@
 import type { Movement } from "./Movement";
-import { timeToBeat } from "./utils";
+import { beatToSeconds, bpmAt, meterAt, timeToBeat } from "./utils";
+
+type PlayOptions = {
+  fromBeat?: number;
+};
 
 export class PlaybackEngine {
   private context: AudioContext;
@@ -8,6 +12,8 @@ export class PlaybackEngine {
   private activeNodes: AudioScheduledSourceNode[] = [];
   private trackStart: number | null = null;
   private movement?: Movement;
+
+  private playingFromBeat: number = 0;
 
   constructor() {
     this.context = new AudioContext();
@@ -19,35 +25,12 @@ export class PlaybackEngine {
     this.audioFile = await this.context.decodeAudioData(buffer);
   }
 
-  clearAudio(){
+  clearAudio() {
     this.audioFile = undefined;
   }
 
-  canPlay(){
+  canPlay() {
     return !!this.audioFile;
-  }
-
-  async play(movement: Movement) {
-    this.stop();
-
-    if (!this.audioFile) {
-      throw new Error("Missing audio file.");
-    }
-
-    this.movement = movement;
-
-    const bus = this.context.createGain();
-    bus.connect(this.context.destination);
-    this.bus = bus;
-
-    const beatsPerBar = movement.meter[0]?.beatsPerBar ?? 4;
-    const bpm = movement.tempo[0]?.bpm ?? 120;
-
-    const startAt = this.context.currentTime + 0.05;
-    this.trackStart = this.queueCountIn(bus, startAt, beatsPerBar, 60 / bpm);
-    this.queueTrack(this.trackStart, movement.audio.offsetMs ?? 0, movement.audio.leadInBeats ?? 0, bpm);
-
-    await this.context.resume();
   }
 
   stop() {
@@ -69,16 +52,53 @@ export class PlaybackEngine {
     this.trackStart = null;
   }
 
-  getCurrentBeat(){
-    if(this.trackStart === null || !this.movement || this.context.state != 'running'){
-        return null;
+  getCurrentBeat() {
+    if (
+      this.trackStart === null ||
+      !this.movement ||
+      this.context.state != "running"
+    ) {
+      return null;
     }
 
-    if(this.context.currentTime < this.trackStart){
-        return -1;
+    if (this.context.currentTime < this.trackStart) {
+      return -1;
     }
 
-    return timeToBeat(this.movement!.tempo, 0, this.context.currentTime - this.trackStart, 1);
+    return timeToBeat(
+      this.movement!.tempo,
+      this.playingFromBeat,
+      this.context.currentTime - this.trackStart,
+      1,
+    );
+  }
+
+  async play(movement: Movement, { fromBeat }: PlayOptions = {}) {
+    this.stop();
+
+    if (!this.audioFile) {
+      throw new Error("Missing audio file.");
+    }
+
+    this.movement = movement;
+
+    const bus = this.context.createGain();
+    bus.connect(this.context.destination);
+    this.bus = bus;
+
+    const startBeat = fromBeat ?? 0;
+    const leadIn =
+      startBeat === (movement.sets[0]?.beat ?? 0)
+        ? (movement.audio.leadInBeats ?? 0)
+        : 0;
+    const beatsPerBar = meterAt(movement.meter, startBeat)?.beatsPerBar ?? 4;
+    const bpm = bpmAt(movement.tempo, startBeat);
+
+    const startAt = this.context.currentTime + 0.05;
+    const downbeat = this.queueCountIn(bus, startAt, beatsPerBar, 60 / bpm);
+    this.queueTrack(downbeat, startBeat, leadIn);
+
+    await this.context.resume();
   }
 
   private queueCountIn(
@@ -110,14 +130,40 @@ export class PlaybackEngine {
     return startAt + totalCounts * interval;
   }
 
-  private queueTrack(startAt: number, trackOffsetMs: number, leadInBeats: number, bpm: number){
-    const offset = leadInBeats * (60 / bpm);
-    const source = this.context.createBufferSource();
+  private queueTrack(
+    downbeatAt: number,
+    startBeat: number,
+    appliedLeadIn: number,
+    toBeat?: number,
+  ) {
+    const m = this.movement!;
+    const tempo = m.tempo;
+    const pickup = ((m.audio.leadInBeats ?? 0) * 60) / tempo[0]!.bpm;
+    const nudge = (m.audio.offsetMs ?? 0) / 1000;
+    const pos = (beat: number) => nudge + pickup + beatToSeconds(tempo, beat);
 
+    const musicBeat = startBeat - appliedLeadIn;
+    const leadSeconds =
+      beatToSeconds(tempo, startBeat) - beatToSeconds(tempo, musicBeat);
+
+    let offset = pos(musicBeat);
+    let when = downbeatAt - leadSeconds;
+    if (offset < 0) {
+      when -= offset;
+      offset = 0;
+    }
+
+    const source = this.context.createBufferSource();
     source.buffer = this.audioFile!;
     source.connect(this.bus!);
-    source.start(Math.max(startAt - offset - (trackOffsetMs / 1000.0), 0));
+    source.start(
+      when,
+      offset,
+      toBeat === undefined ? undefined : pos(toBeat) - offset,
+    );
 
+    this.trackStart = when;
+    this.playingFromBeat = musicBeat;
     this.track(source);
   }
 
@@ -126,7 +172,7 @@ export class PlaybackEngine {
     node.onended = () => {
       this.activeNodes = this.activeNodes.filter((n) => n !== node);
 
-      if(this.activeNodes.length == 0){
+      if (this.activeNodes.length == 0) {
         this.stop();
       }
     };

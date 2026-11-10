@@ -1,6 +1,8 @@
 import type { Result } from "./Result";
 import { isUnique } from "./utils";
 
+export const DEFAULT_BPM = 120;
+
 export type AudioConfig = {
     offsetMs?: number;
     leadInBeats?: number;

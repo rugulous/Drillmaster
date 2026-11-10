@@ -78,14 +78,17 @@
             </div>
 
             <div class="col-8 h-100 overflow-y-auto">
-                <button type="button" class="btn-solid btn-styled btn-lg theme-success my-5" @click="addSet">Add Set</button>
+                <button type="button" class="btn-solid btn-styled btn-lg theme-success my-5 me-5" @click="addSet">Add Set</button>
+
+                <p>Beat {{ beat }}</p>
 
                 <div class="row row-cols-3 text-center">
                     <div class="mb-5" v-for="(row, index) in rows" :key="row.set.id">
                         <div class="card h-100" :class="{
                             'bg-primary': isPlaying && (row.set.beat == beat || (row.set.beat < beat && row.set.beat + row.counts > beat)), 
                             'bg-secondary': isPlaying && row.set.beat + row.counts <= beat
-                            }">
+                            }"
+                            @click="playFromSet(row.set)">
                             <div class="card-body">
                                 <div class="d-flex">
                                     <h4 class="card-title w-100">Set <input class="form-control d-inline-block w-auto" v-model="row.set.id" /></h4>
@@ -261,6 +264,14 @@ async function loadMovement(files: FileList){
 async function loadAudio(files: FileList) {
     const audio = await files[0]!.bytes();
     await engine.loadAudio(audio.buffer);
+}
+
+async function playFromSet(set: SetConfig){
+    if(!canPlay.value){
+        return;
+    }
+    
+    await engine.play(movement, {fromBeat: set.beat})
 }
 
 onUnmounted(() => {
