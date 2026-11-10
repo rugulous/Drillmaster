@@ -57,8 +57,8 @@
                 </div>
 
                 <p>Chunk</p>
-                <ul class="list-group">
-                    <li class="list-group-item" v-for="set in selectedSets" :class="{'active fs-lg': set.beat <= beat && set.beat + set.counts > beat, 'theme-secondary': (set.beat + set.counts - 1) < beat}">
+                <ul class="list-group mb-5">
+                    <li class="list-group-item" v-for="set in selectedSets" :class="{'active fs-lg': set.beat <= beat && set.beat + set.counts > beat, 'theme-secondary fs-sm': (set.beat + set.counts - 1) < beat}">
                         <p class="mb-0 d-flex justify-content-between">Set {{ set.id }} <span class="badge" :class="{'theme-primary': set.beat > beat, 'theme-secondary': (set.beat + set.counts - 1) < beat, 'theme-inverse': set.beat <= beat && set.beat + set.counts > beat}">{{ set.counts }} Counts</span></p>
                         <p class="mb-0 fst-italic" v-if="set.note">{{ set.note }}</p>
                     </li>
@@ -69,9 +69,10 @@
 </template>
 
 <script setup lang="ts">
-import { Movement } from '@/lib/Movement';
+import { deserializeMovement, Movement } from '@/lib/Movement';
 import { usePlayback } from '@/lib/usePlayback';
-import { computed, ref } from 'vue';
+import { useWakeLock } from '@/lib/useWakeLock';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 const movements = [{
     id: "P1",
@@ -91,7 +92,7 @@ const selectedSets = computed(() => {
     }
 
     const sets = [];
-    let inRange = false;
+    let inRange = startSet.value == null;
 
     for(let i = 0; i < loadedMovement.value.sets.length; i++){
         const set = loadedMovement.value.sets[i]!;
@@ -104,7 +105,7 @@ const selectedSets = computed(() => {
             inRange = true;
         }
 
-        if(inRange || startSet.value == null || endSet.value == null){
+        if(inRange){
             sets.push({
                 ...set,
                 counts: (i == loadedMovement.value.sets.length - 1
@@ -135,11 +136,17 @@ async function loadMovement(event: Event){
     const id = (event.target as HTMLSelectElement).value;
 
     const [json, audio] = await Promise.all([
-        fetch(`/show/${id}/drill.mvt`).then(d => d.json()),
+        fetch(`/show/${id}/drill.mvt`).then(d => d.text()),
         fetch(`/show/${id}/audio.mp3`).then(a => a.arrayBuffer())
     ]);
 
-    loadedMovement.value = Movement.fromSerialized(json, id);
+    const loadResult = deserializeMovement(json, id);
+    if(!loadResult.success){
+        alert(`Failed to load movement: ${loadResult.errors.join(",")}`);
+        return;
+    }
+
+    loadedMovement.value = loadResult.result;
 
     await engine.loadAudio(audio);
 }
@@ -152,6 +159,7 @@ function selectSet(index: number){
 
     if(targetSet.id == startSet.value){
         startSet.value = null;
+        endSet.value = null;
         nextSetToSelect.value = "start";
         return;
     }
@@ -174,7 +182,6 @@ async function playSets(){
         return;
     }
 
-    console.log(selectedSets.value);
     const endSet = selectedSets.value[selectedSets.value.length - 1]!;
 
     await engine.play(loadedMovement.value, {
@@ -182,4 +189,7 @@ async function playSets(){
         toBeat: endSet.beat + endSet.counts
     });
 }
+
+const {request} = useWakeLock();
+onMounted(async () => await request());
 </script>

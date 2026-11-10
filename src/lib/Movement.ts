@@ -61,9 +61,7 @@ export class Movement {
     }
 
     removeSet(setId: string){
-        console.log(this.sets.length);
         this.sets = this.sets.filter(s => s.id != setId);
-        console.log(this.sets.length);
     }
 }
 
