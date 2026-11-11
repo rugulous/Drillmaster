@@ -9,7 +9,7 @@
                 <UploadButton class="btn-solid btn-styled theme-accent btn-lg" accept="audio/*" @pick="loadAudio" v-if="!canPlay">Import Audio</UploadButton>
                 <template v-else>
                     <button class="btn-solid btn-styled theme-accent btn-lg me-3" type="button" v-if="isPlaying" @click="engine.stop">Stop</button>
-                    <button class="btn-solid btn-styled theme-accent btn-lg me-3" type="button" v-else @click="engine.play(movement)">Test Audio</button>
+                    <button class="btn-solid btn-styled theme-accent btn-lg me-3" type="button" v-else @click="testAudio">Test Audio</button>
                     
                     <button class="btn-solid btn-styled theme-danger btn-lg" type="button" @click="engine.clearAudio">Remove Audio</button>
                 </template>
@@ -83,10 +83,10 @@
                 <div class="row row-cols-3 text-center">
                     <div class="mb-5" v-for="(row, index) in rows" :key="row.set.id">
                         <div class="card h-100" :class="{
-                            'bg-primary': isPlaying && (row.set.beat == beat || (row.set.beat < beat && row.set.beat + row.counts > beat)), 
-                            'bg-secondary': isPlaying && row.set.beat + row.counts <= beat
+                            'bg-primary': isPlaying && ((row.set.beat == beat || (row.set.beat < beat && row.set.beat + row.counts > beat)) || playbackSet == index), 
+                            'bg-secondary': isPlaying && playbackSet == null && row.set.beat + row.counts <= beat
                             }"
-                            @click="playFromSet(row.set)">
+                            @click="playSet(index)">
                             <div class="card-body">
                                 <div class="d-flex">
                                     <h4 class="card-title w-100">Set <input class="form-control d-inline-block w-auto" v-model="row.set.id" /></h4>
@@ -152,6 +152,7 @@ type Row = {
 const theForm = ref<HTMLFormElement>();
 const movement = reactive<Movement>(new Movement());
 const modal = useTemplateRef<InstanceType<typeof SaveMovementDialog>>('modal');
+const playbackSet = ref<number | null>(null);
 
 const {beat, canPlay, isPlaying, ...engine} = usePlayback();
 
@@ -264,12 +265,23 @@ async function loadAudio(files: FileList) {
     await engine.loadAudio(audio.buffer);
 }
 
-async function playFromSet(set: SetConfig){
+async function playSet(index: number){
     if(!canPlay.value){
         return;
     }
+
+    const set = movement.sets[index]!;
+    const toBeat = index == movement.sets.length - 1
+                    ? movement.estimatedBeats
+                    : movement.sets[index + 1]!.beat
     
-    await engine.play(movement, {fromBeat: set.beat})
+    playbackSet.value = index;
+    await engine.play(movement, {fromBeat: set.beat, toBeat})
+}
+
+async function testAudio(){
+    playbackSet.value = null;
+    await engine.play(movement)
 }
 
 onUnmounted(() => {
