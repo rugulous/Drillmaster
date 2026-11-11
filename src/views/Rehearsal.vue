@@ -2,11 +2,15 @@
     <div class="container mb-5">
         <div>
             <label for="movement">Movement</label>
-            <select class="form-control" @change="loadMovement">
+            <select class="form-control" @change="loadMovement" :disabled="isLoading">
                 <option value="" disabled selected>-- Please Select --</option>
                 <option v-for="movement in movements" :value="movement.id">{{ movement.id }} - {{ movement.title }}
                 </option>
             </select>
+        </div>
+
+      <div class="spinner-border d-block mx-auto my-10" style="width: 5rem; height: 5rem;" role="status" v-if="isLoading">
+            <span class="visually-hidden">Loading…</span>
         </div>
 
         <template v-if="canPlay">
@@ -95,6 +99,7 @@ const loadedMovement = ref<Movement | null>(null);
 const nextSetToSelect = ref<"start" | "end">("start");
 const startSet = ref<number | null>(null);
 const endSet = ref<number | null>(null);
+const isLoading = ref(false);
 
 const selectedSets = computed(() => {
     if (!loadedMovement.value) {
@@ -127,6 +132,8 @@ const currentSet = computed(() => {
 });
 
 async function loadMovement(event: Event) {
+    isLoading.value = true;
+
     startSet.value = null;
     endSet.value = null;
     nextSetToSelect.value = "start";
@@ -146,8 +153,9 @@ async function loadMovement(event: Event) {
     }
 
     loadedMovement.value = loadResult.result;
-
     await engine.loadAudio(audio);
+
+    isLoading.value = false;
 }
 
 function selectSet(index: number) {
