@@ -24,12 +24,13 @@
                     <div class="mb-5" v-for="(set, index) in loadedMovement.sets" :key="set.id">
                         <div class="card h-100" :class="{ 'bg-primary': index == startSet, 'bg-accent': index == endSet }"
                             @click="selectSet(index)">
-                            <div class="card-body">
-                                <h2 class="card-title mb-0">{{ set.id }}</h2>
+                            <div class="card-body d-flex justify-content-between">
+                                <h2 class="card-title mb-0">Set {{ set.id }}</h2>
                                 <p class="fst-italic">
-                                    {{ (index == loadedMovement.sets.length - 1 ? loadedMovement.estimatedBeats :
-                                        loadedMovement.sets[index + 1]!.beat) - set.beat }} Counts
+                                    {{ set.note }}
                                 </p>
+                                <span class="badge" :class="{'theme-inverse': index == startSet || index == endSet, 'theme-primary': index != startSet && index != endSet}">{{ (index == loadedMovement.sets.length - 1 ? loadedMovement.estimatedBeats :
+                                        loadedMovement.sets[index + 1]!.beat) - set.beat }} Counts</span>
                             </div>
                         </div>
                     </div>
